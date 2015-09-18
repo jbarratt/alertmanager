@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"testing"
 	"time"
+    "strings"
 
 	pb "github.com/prometheus/alertmanager/config/generated"
 )
@@ -353,6 +354,58 @@ func TestSendOpsGenieNotification(t *testing.T) {
 
 	if !reflect.DeepEqual(msg, expected) {
 		t.Errorf("incorrect OpsGenie notification: Expected: %s Actual: %s", expected, msg)
+	}
+}
+
+func TestSendOpsGenieResolve(t *testing.T) {
+	var body []byte
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var err error
+		body, err = ioutil.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("error reading webhook notification: %s", err)
+		}
+        if !strings.HasSuffix(r.URL.Path, "/close") {
+			t.Errorf("Request was not posted to the '/close' endpoint")
+        }
+	}))
+	defer ts.Close()
+	opsgenieAPIURL = &ts.URL
+	apikey := "AAAB"
+	config := &pb.OpsGenieConfig{
+		ApiKey:       &apikey,
+		LabelsToTags: []string{"alertname"},
+		Teams:        []string{"prometheus"},
+	}
+	alert := &Alert{
+		Summary:     "Testsummary",
+		Description: "Test alert description, something went wrong here.",
+		Labels: AlertLabelSet{
+			"alertname": "TestAlert",
+		},
+		Payload: AlertPayload{
+			"payload_label1": "payload_value1",
+		},
+	}
+	n := &notifier{}
+	err := n.sendOpsGenieNotification(notificationOpResolve, config, alert)
+	if err != nil {
+		t.Errorf("error sending OpsGenie resolve: %s", err)
+	}
+
+	var msg opsGenieMessageClose
+	err = json.Unmarshal(body, &msg)
+	if err != nil {
+		t.Errorf("error unmarshalling OpsGenie resolve: %s", err)
+	}
+
+    expected := opsGenieMessageClose{
+        ApiKey:      "AAAB",
+		Alias:       strconv.FormatUint(uint64(alert.Fingerprint()), 10),
+    }
+
+	if !reflect.DeepEqual(msg, expected) {
+		t.Errorf("incorrect OpsGenie resolve: Expected: %s Actual: %s", expected, msg)
 	}
 }
 
