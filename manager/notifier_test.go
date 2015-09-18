@@ -25,9 +25,9 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
-    "strings"
 
 	pb "github.com/prometheus/alertmanager/config/generated"
 )
@@ -365,9 +365,9 @@ func TestSendOpsGenieResolve(t *testing.T) {
 		if err != nil {
 			t.Errorf("error reading webhook notification: %s", err)
 		}
-        if !strings.HasSuffix(r.URL.Path, "/close") {
+		if !strings.HasSuffix(r.URL.Path, "/close") {
 			t.Errorf("Request was not posted to the '/close' endpoint")
-        }
+		}
 	}))
 	defer ts.Close()
 	opsgenieAPIURL = &ts.URL
@@ -399,10 +399,10 @@ func TestSendOpsGenieResolve(t *testing.T) {
 		t.Errorf("error unmarshalling OpsGenie resolve: %s", err)
 	}
 
-    expected := opsGenieMessageClose{
-        ApiKey:      "AAAB",
-		Alias:       strconv.FormatUint(uint64(alert.Fingerprint()), 10),
-    }
+	expected := opsGenieMessageClose{
+		ApiKey: "AAAB",
+		Alias:  strconv.FormatUint(uint64(alert.Fingerprint()), 10),
+	}
 
 	if !reflect.DeepEqual(msg, expected) {
 		t.Errorf("incorrect OpsGenie resolve: Expected: %s Actual: %s", expected, msg)
